@@ -7,7 +7,7 @@ No Gateway connection — Discord calls the Worker's interactions endpoint direc
 
 | Command | Who | Effect |
 |---|---|---|
-| `/point @user` | anyone | Gives the user one point. No self-points or bot-points. |
+| `/snipe @user` | anyone | Snipes the user (adds one to their count). No self-snipes or bot-snipes. |
 | `/leaderboard` | anyone | Private (ephemeral) view of the current standings. |
 | `/leaderboard_post` | admins | Posts the standings publicly in the channel. |
 
@@ -18,7 +18,7 @@ Commands only work in the designated channel (`DISCORD_LEADERBOARD_CHANNEL_ID`).
 - **`src/entry.py`** — the Worker. Verifies Discord's Ed25519 signature,
   handles PING, routes slash commands, and reads/writes D1.
 - **`schema.sql`** — D1 tables: `leaderboard` (scores per guild/user) and
-  `processed_interactions` (dedupes Discord retries so points aren't double-counted).
+  `processed_interactions` (dedupes Discord retries so snipes aren't double-counted).
 - **`scripts/register_commands.py`** — one-off script to register the slash commands.
 
 ## Configuration

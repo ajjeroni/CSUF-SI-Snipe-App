@@ -118,8 +118,8 @@ class Default(WorkerEntrypoint):
                 ephemeral=True
             )
 
-        if name == "point":
-            return await self.handle_point(db, interaction, guild_id)
+        if name == "snipe":
+            return await self.handle_snipe(db, interaction, guild_id)
 
         if name == "leaderboard":
             # Private snapshot for anyone.
@@ -140,7 +140,7 @@ class Default(WorkerEntrypoint):
 
         return reply("Unknown command.")
 
-    async def handle_point(self, db, interaction, guild_id):
+    async def handle_snipe(self, db, interaction, guild_id):
         # The "user" option value is the target user's ID (string).
         options = interaction["data"].get("options", [])
         target_id = None
@@ -152,20 +152,20 @@ class Default(WorkerEntrypoint):
         if target_id is None:
             return reply("You must specify a user.", ephemeral=True)
 
-        # No self-pointing: the invoker is in interaction["member"]["user"].
+        # No self-sniping: the invoker is in interaction["member"]["user"].
         invoker_id = (
             interaction.get("member", {}).get("user", {}).get("id")
         )
         if target_id == invoker_id:
-            return reply("You can't give yourself a point.", ephemeral=True)
+            return reply("You can't snipe yourself.", ephemeral=True)
 
-        # No pointing the bot itself (its user ID == the application ID).
+        # No sniping the bot itself (its user ID == the application ID).
         app_id = getattr(self.env, "DISCORD_APPLICATION_ID", None)
         if app_id is not None and target_id == app_id:
-            return reply("You can't give the bot a point.", ephemeral=True)
+            return reply("You can't snipe the bot.", ephemeral=True)
 
         # Idempotency: record this interaction ID. If it already exists,
-        # this is a Discord retry of a point we already awarded, so skip.
+        # this is a Discord retry of a snipe we already counted, so skip.
         interaction_id = interaction["id"]
         try:
             await (
@@ -178,7 +178,7 @@ class Default(WorkerEntrypoint):
             )
         except Exception:
             # Primary-key conflict => duplicate delivery. Do nothing.
-            return reply(f"Point already awarded to <@{target_id}>.",
+            return reply(f"<@{target_id}> was already sniped.",
                          ephemeral=True)
 
         # Atomic increment: insert at 1, or add 1 if the row already exists.
@@ -203,7 +203,7 @@ class Default(WorkerEntrypoint):
         )
 
         total = row.points if row else 1
-        return reply(f"Point awarded to <@{target_id}> (now {total}).")
+        return reply(f"Sniped <@{target_id}> (now {total}).")
 
     async def handle_leaderboard(self, db, guild_id, ephemeral=True):
         query = await (
@@ -220,7 +220,7 @@ class Default(WorkerEntrypoint):
         rows = query.results
         if not rows:
             return reply(
-                "No points yet. Use /point to get started.",
+                "No snipes yet. Use /snipe to get started.",
                 ephemeral=ephemeral
             )
 

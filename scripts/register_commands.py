@@ -15,13 +15,13 @@ url = (
 
 commands = [
     {
-        "name": "point",
+        "name": "snipe",
         "type": 1,
-        "description": "Award one leaderboard point to a user",
+        "description": "Snipe a user (adds one to their leaderboard count)",
         "options": [
             {
                 "name": "user",
-                "description": "User receiving the point",
+                "description": "User to snipe",
                 "type": 6,
                 "required": True
             }
@@ -39,22 +39,24 @@ commands = [
     }
 ]
 
-for command in commands:
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(command).encode("utf-8"),
-        headers={
-            "Authorization": f"Bot {BOT_TOKEN}",
-            "Content-Type": "application/json",
-            "User-Agent": "DiscordBot (https://github.com/example/discord-leaderboard, 1.0)"
-        },
-        method="POST"
-    )
+# Bulk overwrite: PUT replaces the guild's entire command set with this
+# list, so any command not included here (e.g. an old /point) is removed.
+request = urllib.request.Request(
+    url,
+    data=json.dumps(commands).encode("utf-8"),
+    headers={
+        "Authorization": f"Bot {BOT_TOKEN}",
+        "Content-Type": "application/json",
+        "User-Agent": "DiscordBot (https://github.com/example/discord-leaderboard, 1.0)"
+    },
+    method="PUT"
+)
 
-    try:
-        with urllib.request.urlopen(request) as response:
-            result = json.load(response)
-            print(f"Registered /{result['name']}")
-    except urllib.error.HTTPError as error:
-        print(f"Failed: {error.code}")
-        print(error.read().decode())
+try:
+    with urllib.request.urlopen(request) as response:
+        results = json.load(response)
+        names = ", ".join(f"/{c['name']}" for c in results)
+        print(f"Registered {len(results)} commands: {names}")
+except urllib.error.HTTPError as error:
+    print(f"Failed: {error.code}")
+    print(error.read().decode())
