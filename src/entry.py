@@ -103,16 +103,38 @@ class Default(WorkerEntrypoint):
         db = self.env.discord_leaderboard_db
         name = interaction["data"]["name"]
         guild_id = interaction.get("guild_id")
+        channel_id = interaction.get("channel_id")
 
         if guild_id is None:
             return reply("This command can only be used in a server.")
 
-        # Restrict commands to the designated leaderboard channel.
-        allowed_channel = getattr(
-            self.env, "DISCORD_LEADERBOARD_CHANNEL_ID", None
-        )
-        channel_id = interaction.get("channel_id")
-        if allowed_channel is not None and channel_id != allowed_channel:
+        # /setup and /unsetup are admin-only and must run BEFORE the
+        # channel check, since they define/remove the allowed channel.
+        if name == "setup":
+            if not is_admin(interaction):
+                return reply(
+                    "Only server admins can run /setup.",
+                    ephemeral=True
+                )
+            return await self.handle_setup(db, guild_id, channel_id)
+
+        if name == "unsetup":
+            if not is_admin(interaction):
+                return reply(
+                    "Only server admins can run /unsetup.",
+                    ephemeral=True
+                )
+            return await self.handle_unsetup(db, guild_id)
+
+        # Restrict every other command to this guild's configured channel.
+        allowed_channel = await self.get_allowed_channel(db, guild_id)
+        if allowed_channel is None:
+            return reply(
+                "This server isn't set up yet. An admin must run /setup "
+                "in the channel where the leaderboard should live.",
+                ephemeral=True
+            )
+        if channel_id != allowed_channel:
             return reply(
                 f"Please use these commands in <#{allowed_channel}>.",
                 ephemeral=True
@@ -139,6 +161,55 @@ class Default(WorkerEntrypoint):
             )
 
         return reply("Unknown command.")
+
+    async def get_allowed_channel(self, db, guild_id):
+        """Return the configured channel ID for this guild, or None."""
+        row = await (
+            db.prepare(
+                "SELECT channel_id FROM guild_config WHERE guild_id = ?"
+            )
+            .bind(guild_id)
+            .first()
+        )
+        return row.channel_id if row else None
+
+    async def handle_setup(self, db, guild_id, channel_id):
+        """Set (or update) this guild's leaderboard channel to the
+        channel where /setup was run."""
+        await (
+            db.prepare(
+                "INSERT INTO guild_config (guild_id, channel_id) "
+                "VALUES (?, ?) "
+                "ON CONFLICT(guild_id) "
+                "DO UPDATE SET channel_id = excluded.channel_id"
+            )
+            .bind(guild_id, channel_id)
+            .run()
+        )
+        return reply(
+            f"Setup complete. Snipe commands now work in <#{channel_id}>.",
+            ephemeral=True
+        )
+
+    async def handle_unsetup(self, db, guild_id):
+        """Remove this guild's channel binding. Commands then require
+        /setup again before they work."""
+        result = await (
+            db.prepare("DELETE FROM guild_config WHERE guild_id = ?")
+            .bind(guild_id)
+            .run()
+        )
+
+        changed = getattr(result.meta, "changes", 0)
+        if changed:
+            return reply(
+                "Channel unbound. Run /setup to pick a channel again.",
+                ephemeral=True
+            )
+        return reply(
+            "There was no channel bound for this server.",
+            ephemeral=True
+        )
 
     async def handle_snipe(self, db, interaction, guild_id):
         # The "user" option value is the target user's ID (string).

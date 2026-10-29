@@ -36,6 +36,16 @@ commands = [
         "name": "leaderboard_post",
         "type": 1,
         "description": "Admins only: post the leaderboard publicly"
+    },
+    {
+        "name": "setup",
+        "type": 1,
+        "description": "Admins only: set this channel as the snipe channel"
+    },
+    {
+        "name": "unsetup",
+        "type": 1,
+        "description": "Admins only: unbind the snipe channel"
     }
 ]
 
