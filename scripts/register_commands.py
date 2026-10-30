@@ -28,6 +28,26 @@ commands = [
         ]
     },
     {
+        "name": "deduct",
+        "type": 1,
+        "description": "Admins only: remove points from a user (floors at 0)",
+        "options": [
+            {
+                "name": "user",
+                "description": "User to deduct points from",
+                "type": 6,
+                "required": True
+            },
+            {
+                "name": "amount",
+                "description": "How many points to remove (positive whole number)",
+                "type": 4,
+                "required": True,
+                "min_value": 1
+            }
+        ]
+    },
+    {
         "name": "leaderboard",
         "type": 1,
         "description": "Privately view the current leaderboard"

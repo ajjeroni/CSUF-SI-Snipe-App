@@ -143,6 +143,15 @@ class Default(WorkerEntrypoint):
         if name == "snipe":
             return await self.handle_snipe(db, interaction, guild_id)
 
+        if name == "deduct":
+            # Admin-only: remove points from a user (floors at 0).
+            if not is_admin(interaction):
+                return reply(
+                    "Only server admins can deduct points.",
+                    ephemeral=True
+                )
+            return await self.handle_deduct(db, interaction, guild_id)
+
         if name == "leaderboard":
             # Private snapshot for anyone.
             return await self.handle_leaderboard(
@@ -275,6 +284,75 @@ class Default(WorkerEntrypoint):
 
         total = row.points if row else 1
         return reply(f"Sniped <@{target_id}> (now {total}).")
+
+    async def handle_deduct(self, db, interaction, guild_id):
+        # Pull the "user" and "amount" options out of the command.
+        options = interaction["data"].get("options", [])
+        target_id = None
+        amount = None
+        for option in options:
+            if option["name"] == "user":
+                target_id = option["value"]
+            elif option["name"] == "amount":
+                amount = option["value"]
+
+        if target_id is None or amount is None:
+            return reply(
+                "You must specify a user and an amount.",
+                ephemeral=True
+            )
+
+        # Enforce positive integer. Discord's integer option allows
+        # zero and negatives, so we validate here.
+        try:
+            amount = int(amount)
+        except (TypeError, ValueError):
+            return reply("Amount must be a whole number.", ephemeral=True)
+        if amount <= 0:
+            return reply(
+                "Amount must be a positive integer.",
+                ephemeral=True
+            )
+
+        # If the user has no row, there's nothing to deduct.
+        row = await (
+            db.prepare(
+                "SELECT points FROM leaderboard "
+                "WHERE guild_id = ? AND user_id = ?"
+            )
+            .bind(guild_id, target_id)
+            .first()
+        )
+        if row is None:
+            return reply(
+                f"<@{target_id}> has no points to deduct.",
+                ephemeral=True
+            )
+
+        # Atomic floor-at-zero subtraction: never goes negative.
+        await (
+            db.prepare(
+                "UPDATE leaderboard "
+                "SET points = MAX(points - ?, 0) "
+                "WHERE guild_id = ? AND user_id = ?"
+            )
+            .bind(amount, guild_id, target_id)
+            .run()
+        )
+
+        updated = await (
+            db.prepare(
+                "SELECT points FROM leaderboard "
+                "WHERE guild_id = ? AND user_id = ?"
+            )
+            .bind(guild_id, target_id)
+            .first()
+        )
+        new_total = updated.points if updated else 0
+        return reply(
+            f"Deducted {amount} from <@{target_id}> (now {new_total}).",
+            ephemeral=True
+        )
 
     async def handle_leaderboard(self, db, guild_id, ephemeral=True):
         query = await (
