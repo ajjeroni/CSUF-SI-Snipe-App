@@ -295,11 +295,14 @@ class Default(WorkerEntrypoint):
                 ephemeral=ephemeral
             )
 
+        # Gold/silver/bronze for the top three; plain numbers after.
+        medals = {1: "🥇", 2: "🥈", 3: "🥉"}
         lines = []
         for index, row in enumerate(rows, start=1):
-            lines.append(f"{index}. <@{row.user_id}> — {row.points}")
+            rank = medals.get(index, f"{index}.")
+            lines.append(f"{rank} <@{row.user_id}> — {row.points}")
 
         return reply(
-            "**Leaderboard**\n" + "\n".join(lines),
+            "📸  **Leaderboard**  📸\n" + '------------------------\n' + "\n".join(lines),
             ephemeral=ephemeral
         )
