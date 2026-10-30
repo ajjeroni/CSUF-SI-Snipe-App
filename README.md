@@ -8,6 +8,7 @@ No Gateway connection — Discord calls the Worker's interactions endpoint direc
 | Command | Who | Effect |
 |---|---|---|
 | `/snipe @user` | anyone | Snipes the user (adds one to their count). No self-snipes or bot-snipes. |
+| `/deduct @user amount` | admins | Removes `amount` points from the user. Amount must be a positive whole number; the total floors at 0. |
 | `/leaderboard` | anyone | Private (ephemeral) view of the current standings. |
 | `/leaderboard_post` | admins | Posts the standings publicly in the channel. |
 | `/setup` | admins | Binds the channel it's run in as this server's snipe channel. |
